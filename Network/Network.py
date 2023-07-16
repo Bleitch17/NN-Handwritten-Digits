@@ -48,7 +48,7 @@ class Network:
             mini_batches = [training_data[k:k + mini_batch_size] for k in range(0, n, mini_batch_size)]
 
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch, eta)
+                self.update_mini_batch(mini_batch_to_matrix_tuple(mini_batch), eta)
 
             if test_data:
                 print(f"Epoch {epoch}: {self.evaluate(test_data)}/{n_test}")
@@ -74,15 +74,7 @@ class Network:
         :param eta: the learning rate.
         :return: nothing - mutates the biases and weights in the network.
         """
-        nabla_b = [np.zeros(b.shape) for b in self.biases]
-        nabla_w = [np.zeros(w.shape) for w in self.weights]
-
-        # TODO: Modify backpropagation algorithm to accept the entire mini batch at once, as opposed to looping
-        #  through it.
-        for x, y, in mini_batch:
-            delta_nabla_b, delta_nabla_w = self.backprop(x, y)
-            nabla_b = [nb + dnb for nb, dnb in zip(nabla_b, delta_nabla_b)]
-            nabla_w = [nw + dnw for nw, dnw in zip(nabla_w, delta_nabla_w)]
+        nabla_b, nabla_w = self.backprop(mini_batch[0], mini_batch[1])
 
         # Note - the loop above sums the deltas for each (x, y) in the mini batch, so need to take the average
         self.weights = [w - (eta / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
@@ -103,27 +95,27 @@ class Network:
         # Note - no need for a z vector for the input layer
         activation = x
         activations = [x]
-        z_vectors = []
+        z_matrices = []
 
         # Feedforward + tracking intermediate values for use in later calculations
         for b, w in zip(self.biases, self.weights):
             z = np.dot(w, activation) + b
-            z_vectors.append(z)
+            z_matrices.append(z)
             activation = sigmoid(z)
             activations.append(activation)
 
         # Error from the output layer
-        delta = cost_derivative(activations[-1], y) * sigmoid_prime(z_vectors[-1])
-        nabla_b[-1] = delta
+        delta = cost_derivative(activations[-1], y) * sigmoid_prime(z_matrices[-1])
+        nabla_b[-1] = np.sum(delta, axis=1).reshape(delta.shape[0], 1)
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
 
         # For a given layer, find its error by using the error from the layer after it - since the output layer error is
         #  known, work backwards
         for layer in range(2, self.num_layers):
-            z = z_vectors[-layer]
+            z = z_matrices[-layer]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-layer + 1].transpose(), delta) * sp
-            nabla_b[-layer] = delta
+            nabla_b[-layer] = np.sum(delta, axis=1).reshape(delta.shape[0], 1)
             nabla_w[-layer] = np.dot(delta, activations[-layer - 1].transpose())
 
         return nabla_b, nabla_w
@@ -134,8 +126,12 @@ def cost_derivative(output_activations, y):
 
 
 def sigmoid(z):
-    return 1.0 / (1.0 + np.exp(-z))
+    return 1.0 / (1.0 + np.exp(-1 * z))
 
 
 def sigmoid_prime(z):
     return sigmoid(z) * (1.0 - sigmoid(z))
+
+
+def mini_batch_to_matrix_tuple(mini_batch):
+    return np.concatenate([x[0] for x in mini_batch], axis=1), np.concatenate([x[1] for x in mini_batch], axis=1)
