@@ -26,6 +26,6 @@ if __name__ == '__main__':
 
     # print(test_data[0])
 
-    net = Network.Network([784, 40, 10])
+    net = Network.Network([784, 100, 10])
 
-    net.sgd(training_data, 30, 10, 1, test_data=test_data)
+    net.sgd(training_data, 50, 50, 0.025, test_data=test_data)

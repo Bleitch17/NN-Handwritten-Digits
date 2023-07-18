@@ -1,9 +1,11 @@
 import numpy as np
 import random
 
+from Functions import QuadraticCost, CrossEntropyCost, Sigmoid
+
 
 class Network:
-    def __init__(self, layer_sizes):
+    def __init__(self, layer_sizes, cost=CrossEntropyCost):
         """
         Constructor for the neural network.
         :param layer_sizes: a list of numbers, where layer_sizes[i] represents the number of neurons in the network
@@ -12,6 +14,7 @@ class Network:
         """
         self.num_layers = len(layer_sizes)
         self.layer_sizes = layer_sizes
+        self.cost = CrossEntropyCost.CrossEntropyCost()
 
         self.biases = [np.random.randn(layer_size, 1) for layer_size in layer_sizes[1:]]
         self.weights = [np.random.randn(layer_size, prev_layer_size)
@@ -25,7 +28,7 @@ class Network:
         :return: the activations of the output layer.
         """
         for b, w in zip(self.biases, self.weights):
-            activations = sigmoid(np.dot(w, activations) + b)
+            activations = Sigmoid.sigmoid(np.dot(w, activations) + b)
         return activations
 
     def sgd(self, training_data, epochs, mini_batch_size, eta, test_data=None):
@@ -101,11 +104,11 @@ class Network:
         for b, w in zip(self.biases, self.weights):
             z = np.dot(w, activation) + b
             z_matrices.append(z)
-            activation = sigmoid(z)
+            activation = Sigmoid.sigmoid(z)
             activations.append(activation)
 
         # Error from the output layer
-        delta = cost_derivative(activations[-1], y) * sigmoid_prime(z_matrices[-1])
+        delta = self.cost.delta(z_matrices[-1], activations[-1], y)
         nabla_b[-1] = np.sum(delta, axis=1).reshape(delta.shape[0], 1)
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
 
@@ -113,24 +116,12 @@ class Network:
         #  known, work backwards
         for layer in range(2, self.num_layers):
             z = z_matrices[-layer]
-            sp = sigmoid_prime(z)
+            sp = Sigmoid.sigmoid_prime(z)
             delta = np.dot(self.weights[-layer + 1].transpose(), delta) * sp
             nabla_b[-layer] = np.sum(delta, axis=1).reshape(delta.shape[0], 1)
             nabla_w[-layer] = np.dot(delta, activations[-layer - 1].transpose())
 
         return nabla_b, nabla_w
-
-
-def cost_derivative(output_activations, y):
-    return output_activations - y
-
-
-def sigmoid(z):
-    return 1.0 / (1.0 + np.exp(-1 * z))
-
-
-def sigmoid_prime(z):
-    return sigmoid(z) * (1.0 - sigmoid(z))
 
 
 def mini_batch_to_matrix_tuple(mini_batch):
