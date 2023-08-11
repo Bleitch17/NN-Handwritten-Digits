@@ -31,7 +31,7 @@ class Network:
             activations = Sigmoid.sigmoid(np.dot(w, activations) + b)
         return activations
 
-    def sgd(self, training_data, epochs, mini_batch_size, eta, test_data=None):
+    def sgd(self, training_data, epochs, mini_batch_size, eta, lmbda, test_data=None):
         """
         Trains the network using stochastic gradient descent.
         :param training_data: a list of (x, y) tuples, where x is the input (activations of the input layer) and y is
@@ -39,6 +39,7 @@ class Network:
         :param epochs: the number of training epochs.
         :param mini_batch_size: the size of each mini batch.
         :param eta: the learning rate.
+        :param lmbda: the regularization parameter.
         :param test_data: optional - a list of (x, y) tuples, where x is the input (activations of the input layer) and
         y is the correct output digit (NOT the activations of the output layer).
         :return: nothing - mutates the biases and weights in the network.
@@ -51,7 +52,7 @@ class Network:
             mini_batches = [training_data[k:k + mini_batch_size] for k in range(0, n, mini_batch_size)]
 
             for mini_batch in mini_batches:
-                self.update_mini_batch(mini_batch_to_matrix_tuple(mini_batch), eta)
+                self.update_mini_batch(mini_batch_to_matrix_tuple(mini_batch), eta, lmbda)
 
             if test_data:
                 print(f"Epoch {epoch}: {self.evaluate(test_data)}/{n_test}")
@@ -68,19 +69,20 @@ class Network:
         test_results = [(np.argmax(self.feedforward(x)), y) for x, y in test_data]
         return sum(int(x == y) for x, y in test_results)
 
-    def update_mini_batch(self, mini_batch, eta):
+    def update_mini_batch(self, mini_batch, eta, lmbda):
         """
         Update the biases and weights in the network for each mini batch, based on the results from the backpropagation
         algorithm.
         :param mini_batch: a list of (x, y) tuples, where x is the input (activations of the input layer) and y is
         the correct output (activations of the output layer).
         :param eta: the learning rate.
+        :param lmbda: the regularization parameter.
         :return: nothing - mutates the biases and weights in the network.
         """
         nabla_b, nabla_w = self.backprop(mini_batch[0], mini_batch[1])
 
-        # Note - the loop above sums the deltas for each (x, y) in the mini batch, so need to take the average
-        self.weights = [w - (eta / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
+        # Note - need to average, as nw and nb represent the sums of the partial derivatives taken over the mini batch
+        self.weights = [(1 - eta * lmbda / 50000) * w - (eta / len(mini_batch)) * nw for w, nw in zip(self.weights, nabla_w)]
         self.biases = [b - (eta / len(mini_batch)) * nb for b, nb in zip(self.biases, nabla_b)]
 
     def backprop(self, x, y):
